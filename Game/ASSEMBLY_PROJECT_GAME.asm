@@ -1,30 +1,42 @@
 bits 16
 org 0x7C00
 
+cli
+
+mov ah , 0x02
+mov al ,8
+mov dl , 0x80
+mov ch , 0
+mov dh , 0
+mov cl , 2
+mov bx, startingTheCode
+int 0x13
+jmp startingTheCode
+
+
+times (510 - ($ - $$)) db 0
+db 0x55, 0xAA
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+startingTheCode:
+
 	cli
-	xor ax,ax
-	mov ds,ax
-	mov es,ax
-	mov edi, 0xB8000;
-	jmp main_code
-      
-      ;section .data:
-      radius: dd 25.0
-      five: dd 5.0
-      a: dd 256.0
-      b: dd 100.0
-      temp: dd 0
-      theta: dd 30.0
-      conversion:dd 0.0174533
-      B: dd 0.0
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;
-	;WRITE YOUR CODE HERE
-      main_code:
-      ; changing the mode to graphics mode:
+	mov edi, 0xB8000
+	xor ebx,ebx;
+	xor ecx,ecx;
+	xor edx, edx;
+	xor esi,esi;
+	
+	xor ax , ax  
+	mov ss , ax 
+	mov sp , 0xffff
+      ;
+main_code:
+; changing the mode to graphics mode:
        mov ah , 0
        mov al , 13h
        int 10h
        ;
+      call draw_pad
       call find_B
       call go_left
       
@@ -40,6 +52,29 @@ org 0x7C00
       
       jmp return
       ;THE FUNCTIONS:
+      
+      
+      ;DRAW PAD ON THE LEFT [void draw_pad (p)]
+      draw_pad:
+      mov dx , [p]
+      mov cx , 15 
+      mov bx , 25
+      add bx , dx ; p + 25
+      pad_draw_loop:
+      cmp dx , bx
+      jge end_pad_draw_loop
+      
+      
+       mov al , 51
+       mov ah , 0ch
+       int 10h
+      
+      inc dx
+      jmp pad_draw_loop
+      end_pad_draw_loop: 
+      ret
+      
+      
       
       ;DRAWING A CIRCLE AT (a,b): [void draw_circle(a,b)]
       draw_circle:	
@@ -258,10 +293,17 @@ org 0x7C00
 
 
 
-	
-
-times (510 - ($ - $$)) db 0
-db 0x55, 0xAA
+	 ;section .data:
+      radius: dd 25.0
+      five: dd 5.0
+      a: dd 256.0
+      b: dd 100.0
+      temp: dd 0
+      theta: dd 30.0
+      conversion:dd 0.0174533
+      B: dd 0.0
+      p: dd 0
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 times (0x400000 - 512) db 0
 
 db 	0x63, 0x6F, 0x6E, 0x65, 0x63, 0x74, 0x69, 0x78, 0x00, 0x00, 0x00, 0x02
