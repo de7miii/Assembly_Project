@@ -14,17 +14,36 @@ org 0x7C00
       a: dd 160.0
       b: dd 100.0
       temp: dd 0
+      theta: dd 30.0
+      conversion:dd 0.0174533
+      B: dd 0.0
       ;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;WRITE YOUR CODE HERE
       main_code:
-      call draw_circle
-      jmp endd
-      ;DRAWING A CIRCLE AT (a,b): [void draw_circle(a,b)]
-      draw_circle:	
+      ; changing the mode to graphics mode:
        mov ah , 0
        mov al , 13h
        int 10h
        ;
+      call find_B
+      call go_left
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      jmp return
+      ;THE FUNCTIONS:
+      
+      ;DRAWING A CIRCLE AT (a,b): [void draw_circle(a,b)]
+      draw_circle:	
+
        finit
        fld dword[a] ;a
        fsub dword[five]
@@ -76,7 +95,147 @@ org 0x7C00
        end_circle:
        ret
        
-       endd:
+       ;DELETING CIRCLE AT a,b :[delete_circle(a,b)]
+       delete_circle:
+       ;;;
+        finit
+       fld dword[a] ;a
+       fsub dword[five]
+       fist dword[temp]
+       mov cx , [temp] 
+       ;
+       fadd dword[five]
+       fadd dword[five]
+       fistp dword[temp]
+       mov si,[temp]
+       circle1:
+       cmp cx , si
+       jg end_circle1
+       
+       mov [temp] , cx
+       fild dword [temp]
+       fsub dword [a]
+       fmul st0
+       fsub dword [radius]
+       fchs
+       fsqrt
+       fadd dword [b]
+       fistp dword [temp]
+       mov dx , [temp]
+       mov al , 0b
+       mov ah , 0ch
+       int 10h
+       ;
+       ;
+       fld dword[b] ; b
+       fadd dword[b]; 2*b
+       fistp dword[temp]
+       mov di,[temp]
+       ;
+       mov bx , dx
+       sub dx , di
+       neg dx
+       fill_loop1:
+       cmp dx , bx
+       jg end_fill_loop1
+       inc dx
+       mov al , 0b
+       mov ah , 0ch
+       int 10h
+       jmp fill_loop1
+       end_fill_loop1:
+       inc cx
+       jmp circle1
+       end_circle1:
+       ;;;;;;
+       ret
+       
+       ;THE THETA FUNCTION : [theta reflection (a,b)]
+       reflection:
+       mov cx,[theta]
+       neg cx
+       mov [theta],cx
+       ret
+       
+       ;FIND THE CONSTANT B (IN y=mx+B) [B find_B(a,b,theta)]:
+       find_B:
+       fld dword[theta]
+       fmul dword[conversion] ; in radians
+       fptan
+       fmul
+       ; st0=tan (theta)
+       fmul dword[a]
+       fsub dword[b]
+       fstp dword[B]
+       ret
+       ;GO LEFT FUNCTION: [void go_left(tehta,B)]
+       go_left:
+       xor ecx,ecx
+       mov cx,256
+       drawing_loop:
+       cmp cx,0
+       jle leave_left
+       ;
+       ;finding m = tan theta
+       fld dword[theta]
+       fmul dword[conversion] ; in radians
+       fptan
+       fmul
+       ; st0=tan (theta)
+       ;
+       mov [a],ecx 
+       fild dword[a]
+       fst dword[a]
+       fmul ; i*m
+       fadd dword[B]
+       fstp dword[b]
+       ;st0=y=m*i+b
+       pushad
+       call draw_circle
+       call delay
+       call delete_circle
+       popad
+       dec cx
+       jmp drawing_loop
+       leave_left:
+       ret
+       ;CHECK BOUNDRY [double_boolean check_boundry(a,b)] le al 3 walls
+       check_boundry:
+       mov ax,[a]
+       mov bx,[b]
+       cmp ax,256
+       jge reached_right_boundry
+       cmp bx,5
+       jle reached_upper_boundry
+       cmp bx,195
+       jge reached_lower_boundry
+       ;if no boundry is reached:
+       mov ax,0
+       ret
+       reached_right_boundry:
+       mov ax,1
+       ret
+       reached_upper_boundry:
+       mov ax,2
+       ret
+       reached_lower_boundry:
+       mov ax,3
+       ret
+       
+       ;THE DELAY FUNCTION:
+       delay:
+       mov bp , 100
+       mov si , 100
+       delay3:
+       dec bp
+       nop
+       jnz delay3
+       dec si
+       cmp si , 0
+       jnz delay3
+       ret
+       
+       return:
        
 
 
