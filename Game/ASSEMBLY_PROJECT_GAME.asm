@@ -11,7 +11,7 @@ org 0x7C00
       ;section .data:
       radius: dd 25.0
       five: dd 5.0
-      a: dd 160.0
+      a: dd 256.0
       b: dd 100.0
       temp: dd 0
       theta: dd 30.0
@@ -151,10 +151,12 @@ org 0x7C00
        ret
        
        ;THE THETA FUNCTION : [theta reflection (a,b)]
-       reflection:
-       mov cx,[theta]
-       neg cx
-       mov [theta],cx
+       ;;;;;;;;;;;;
+            reflection:
+            fld dword[theta]
+            fchs
+            fstp dword[theta]
+            call find_B
        ret
        
        ;FIND THE CONSTANT B (IN y=mx+B) [B find_B(a,b,theta)]:
@@ -166,16 +168,33 @@ org 0x7C00
        ; st0=tan (theta)
        fmul dword[a]
        fsub dword[b]
+       fchs
        fstp dword[B]
        ret
        ;GO LEFT FUNCTION: [void go_left(tehta,B)]
-       go_left:
+            
+              go_left:   
        xor ecx,ecx
        mov cx,256
        drawing_loop:
        cmp cx,0
        jle leave_left
        ;
+       ;
+       pushad
+       call check_U_L_boundry ; ax=0/1/2/3
+       and ax,010b
+       popad
+       jnz call_reflection ; case2 or 3
+       ;else .. continue
+       jmp continue
+       call_reflection:
+       pushad
+       call reflection
+       popad
+       
+       ;
+       continue:
        ;finding m = tan theta
        fld dword[theta]
        fmul dword[conversion] ; in radians
@@ -200,20 +219,19 @@ org 0x7C00
        leave_left:
        ret
        ;CHECK BOUNDRY [double_boolean check_boundry(a,b)] le al 3 walls
-       check_boundry:
-       mov ax,[a]
+        check_U_L_boundry: 
+       fld dword[b]
+       fist dword[b]
        mov bx,[b]
-       cmp ax,256
-       jge reached_right_boundry
        cmp bx,5
+       ;
+       fstp dword[b]
+       ;
        jle reached_upper_boundry
        cmp bx,195
        jge reached_lower_boundry
        ;if no boundry is reached:
        mov ax,0
-       ret
-       reached_right_boundry:
-       mov ax,1
        ret
        reached_upper_boundry:
        mov ax,2
