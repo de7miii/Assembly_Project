@@ -54,6 +54,50 @@ main_code:
       ;THE FUNCTIONS:
       
       
+      ;CHECKING USER INPUT [boolean check_input ()] :
+      check_input:
+      in al , 0x64
+      and al,1
+      jz no_valid_input; ma d5l 7aga
+      ; d5l 7aga
+      in al,0x60 ; user input
+      cmp al,0x1E
+      je mov_pad_down
+      cmp al,0x10
+      je mov_pad_up
+      ; no valid input
+      no_valid_input:
+      mov ax,0
+      ret
+      mov_pad_down:
+      mov ax,1
+      ret
+      mov_pad_up:
+      mov ax,2
+      ret
+      
+      ;MOVING THE PAD UPWARDS [void move_pad_up(p)]
+      move_pad_up:
+      call delete_pad
+      ;
+      mov cx,[p]
+      sub cx,5
+      mov [p] ,cx
+      ;
+      call draw_pad
+      ret
+      
+      ;MOVING THE PAD DOWNWARDS [void move_pad_down(p)]
+      move_pad_down:
+      call delete_pad
+      ;
+      mov cx,[p]
+      add cx,5
+      mov [p] ,cx
+      ;
+      call draw_pad
+      ret
+      
       ;DRAW PAD ON THE LEFT [void draw_pad (p)]
       draw_pad:
       mov dx , [p]
@@ -72,6 +116,26 @@ main_code:
       inc dx
       jmp pad_draw_loop
       end_pad_draw_loop: 
+      ret
+      
+      ;DELETE PAD FROM THE LEFT [void delete_pad (p)]
+      delete_pad:
+      mov dx , [p]
+      mov cx , 15 
+      mov bx , 25
+      add bx , dx ; p + 25
+      pad_delete_loop:
+      cmp dx , bx
+      jge end_pad_delete_loop
+      
+      
+       mov al , 0
+       mov ah , 0ch
+       int 10h
+      
+      inc dx
+      jmp pad_delete_loop
+      end_pad_delete_loop: 
       ret
       
       
@@ -208,14 +272,31 @@ main_code:
        ret
        ;GO LEFT FUNCTION: [void go_left(tehta,B)]
             
-              go_left:   
+       go_left:   
        xor ecx,ecx
        mov cx,256
        drawing_loop:
        cmp cx,0
        jle leave_left
        ;
+       
+       call check_input ; ax=0/1/2  ... maf / down / up
+       cmp ax,0 ;maf
+       je dont_move_pad
+       cmp ax,1 ; down
+       je move_pad_down_label
+       cmp ax,2 ; up
+       ; move_pad_up
+       pushad
+       call move_pad_up
+       popad
+       jmp dont_move_pad
        ;
+       move_pad_down_label:
+       pushad
+       call move_pad_down
+       popad
+       dont_move_pad:
        pushad
        call check_U_L_boundry ; ax=0/1/2/3
        and ax,010b
@@ -253,7 +334,7 @@ main_code:
        jmp drawing_loop
        leave_left:
        ret
-       ;CHECK BOUNDRY [double_boolean check_boundry(a,b)] le al 3 walls
+       ;CHECK BALL BOUNDRY [double_boolean check_boundry(a,b)] le al 3 walls
         check_U_L_boundry: 
        fld dword[b]
        fist dword[b]
