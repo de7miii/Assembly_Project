@@ -37,11 +37,19 @@ main_code:
        int 10h
        ;
       call draw_pad
-      call find_B
+      call draw_right_boundary
+      main_loop:
+      call reflection
       call go_left
       ;
-      
-      ;
+      cmp ax , 0 ; you lost
+      je call_you_lost
+      cmp ax,1 ; go right
+      call score
+      call go_right
+      jmp main_loop
+      call_you_lost:
+      call you_lost
       
       
       
@@ -77,7 +85,169 @@ main_code:
       mov_pad_up:
       mov ax,2
       ret
+      ;CHANGING THE ANGLE AFTER HITTING THE PAD [theta modified_theta(b,p,theta)]:
+      modified_theta:
+      fld dword [b]
+      fist dword[b]
+      mov bx,[b]
+      fstp dword [b]
+      mov ax,[p]
+      ;
+      sub bx,ax
+      cmp bx,5  ;b-p
+      jle sub_theta_max
+      cmp bx,10
+      jle sub_theta_min
+      cmp bx,15
+      jle dont_change_theta
+      cmp bx,20
+      jle add_theta_min
+      cmp bx,25
+      jle add_theta_max
+      sub_theta_max:
+      fld dword [theta]
+      fsub dword[max]
+      fstp dword[theta]
+      ret
+      ;
+      sub_theta_min:
+      fld dword [theta]
+      fsub dword[min]
+      fstp dword[theta]
+      ret
+      ;
+      dont_change_theta:
       
+      ret
+      add_theta_min:
+      fld dword [theta]
+      fadd dword[min]
+      fstp dword[theta]
+      ret
+      ;
+      add_theta_max:
+      fld dword [theta]
+      fadd dword[max]
+      fstp dword[theta]
+      ret
+      
+      ;GO RIGHT FUNCTION [void go_right(a,b,theta)]:
+      go_right:
+      ;;;;; change the angle as desired
+      call modified_theta
+      ;
+       call reflection
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+       call find_B
+       xor ecx,ecx
+       mov cx,20
+       drawing_loop2:
+       cmp cx,256
+       jge leave_right
+       ;
+       
+       call check_input ; ax=0/1/2  ... maf / down / up
+       cmp ax,0 ;maf
+       je dont_move_pad2
+       cmp ax,1 ; down
+       je move_pad_down_label2
+       cmp ax,2 ; up
+       ; move_pad_up
+       pushad
+       call move_pad_up
+       popad
+       jmp dont_move_pad2
+       ;
+       move_pad_down_label2:
+       pushad
+       call move_pad_down
+       popad
+       dont_move_pad2:
+       pushad
+       call check_U_L_boundry ; ax=0/1/2/3
+       and ax,010b
+       popad
+       jnz call_reflection2 ; case2 or 3
+       ;else .. continue
+       jmp continue2
+       call_reflection2:
+       pushad
+       call reflection
+       popad
+       
+       ;
+       continue2:
+       ;finding m = tan theta
+       fld dword[theta]
+       fmul dword[conversion] ; in radians
+       fptan
+       fmul
+       ; st0=tan (theta)
+       ;
+       mov [a],ecx 
+       fild dword[a]
+       fst dword[a]
+       fmul ; i*m
+       fadd dword[B]
+       fstp dword[b]
+       ;st0=y=m*i+b
+       pushad
+       call draw_circle
+       call delay
+       call delete_circle
+       popad
+       inc cx
+       jmp drawing_loop2
+       leave_right:
+       mov ax,0 ; youu lost :(
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ret
+      
+      
+      ; IF YOU LOOSE ROLL CREDIT [void you_lost()]:
+      you_lost:
+      mov al , 03h
+      mov ah , 0
+      int 10h
+      xor ecx , ecx
+      roll_down:
+      cmp ecx , 25 
+      jg end_roll_down
+      mov [mid] , ecx
+      call write_names
+      call delay
+      call delete_names
+      inc ecx 
+      jmp roll_down
+      end_roll_down:
+              
+      ret
+      ;
+      ;WRITE LIST OF NAMES IN MIDDLE OF SCREEN (void write_names(mid))
+      write_names:
+      mov eax , [mid]
+      mov ebx , 160
+      mul ebx 
+      mov edi , 0xB8000
+      add edi , eax
+      add edi , 70
+      mov byte [edi], 0x41 
+      ret
+      ;
+      ;DELETE LIST OF NAMES IN MIDDLE OF SCREEN (void delete_names(mid))
+      delete_names:
+      mov eax , [mid]
+      mov ebx , 160
+      mul ebx 
+      mov edi , 0xB8000
+      add edi , eax
+      add edi , 70
+      mov byte [edi], 0x0 
+      ret
+      ;COUNT THE SCORE:[int score()]:
+      score:
+      
+      ret
   ;MOVING THE PAD UPWARDS [void move_pad_up(p)]
       move_pad_up:
       call pad_boundry
@@ -128,7 +298,7 @@ main_code:
       ;DRAW PAD ON THE LEFT [void draw_pad (p)]
       draw_pad:
       mov dx , [p]
-      mov cx , 15 
+      mov cx , 14 
       mov bx , 25
       add bx , dx ; p + 25
       pad_draw_loop:
@@ -148,7 +318,7 @@ main_code:
       ;DELETE PAD FROM THE LEFT [void delete_pad (p)]
       delete_pad:
       mov dx , [p]
-      mov cx , 15 
+      mov cx , 14 
       mov bx , 25
       add bx , dx ; p + 25
       pad_delete_loop:
@@ -276,6 +446,20 @@ main_code:
        ;;;;;;
        ret
        
+       ;DRAW THE LINE SHOWING THE RIGHT BOUNDARY[void draw_right_boundary()]
+       draw_right_boundary:
+       mov cx,262
+       xor dx,dx
+       draw_right_boundary_loop:
+       cmp dx,200
+       jge end_draw_right_boundary_loop
+       mov al,0x51
+       mov ah,0ch
+       int 10h
+       inc dx
+       jmp draw_right_boundary_loop
+       end_draw_right_boundary_loop:
+       ret
        ;THE THETA FUNCTION : [theta reflection (a,b)]
        ;;;;;;;;;;;;
             reflection:
@@ -301,6 +485,7 @@ main_code:
        ;GO LEFT FUNCTION: [boolean go_left(tehta,B)] 0,1 .... call you lost / call go right
             
        go_left:   
+       call find_B
        xor ecx,ecx
        mov cx,256
        drawing_loop:
@@ -376,7 +561,7 @@ main_code:
        mov ax,0 ; youu lost :(
        ret
        ;CHECK BALL BOUNDRY [double_boolean check_boundry(a,b)] le al 3 walls
-        check_U_L_boundry: 
+       check_U_L_boundry: 
        fld dword[b]
        fist dword[b]
        mov bx,[b]
@@ -421,8 +606,8 @@ main_code:
        
        ;THE DELAY FUNCTION:
        delay:
-       mov bp , 100
-       mov si , 100
+       mov bp , 50
+       mov si , 50
        delay3:
        dec bp
        nop
@@ -447,6 +632,9 @@ main_code:
       conversion:dd 0.0174533
       B: dd 0.0
       p: dd 0
+      mid: dd 0
+      min: dd 3.0
+      max: dd 6.0
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 times (0x400000 - 512) db 0
 
