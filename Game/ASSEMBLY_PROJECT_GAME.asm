@@ -76,8 +76,11 @@ main_code:
       mov ax,2
       ret
       
-      ;MOVING THE PAD UPWARDS [void move_pad_up(p)]
+  ;MOVING THE PAD UPWARDS [void move_pad_up(p)]
       move_pad_up:
+      call pad_boundry
+      cmp ax,2 ; reached upper boundry
+      je cant_move_up
       call delete_pad
       ;
       mov cx,[p]
@@ -85,10 +88,14 @@ main_code:
       mov [p] ,cx
       ;
       call draw_pad
+      cant_move_up:
       ret
       
       ;MOVING THE PAD DOWNWARDS [void move_pad_down(p)]
       move_pad_down:
+      call pad_boundry
+      cmp ax,1 ; reached lower boundry
+      je cant_move_down
       call delete_pad
       ;
       mov cx,[p]
@@ -96,8 +103,26 @@ main_code:
       mov [p] ,cx
       ;
       call draw_pad
+      cant_move_down:
       ret
-      
+      ;CHECKING PAD'S BOUNDRIES : [boolean pad_boundry(p)]
+      pad_boundry:
+      mov cx,[p]
+      mov bx,200
+      sub bx,25  ;200-25
+      cmp cx,0
+      jle upper_pad_boundry
+      cmp cx,bx
+      jge lower_pad_boundry
+      ; no boundry reached
+      mov ax,0
+      ret
+      lower_pad_boundry:
+      mov ax,1
+      ret
+      upper_pad_boundry:
+      mov ax,2
+      ret
       ;DRAW PAD ON THE LEFT [void draw_pad (p)]
       draw_pad:
       mov dx , [p]
