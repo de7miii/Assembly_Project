@@ -283,6 +283,7 @@ main_code:
             call find_B
        ret
        
+       
        ;FIND THE CONSTANT B (IN y=mx+B) [B find_B(a,b,theta)]:
        find_B:
        fld dword[theta]
@@ -304,7 +305,18 @@ main_code:
        cmp cx,0
        jle leave_left
        ;
-       
+       ;
+       cmp cx,20
+       jg left_boundry_not_reached
+       ; left boundry reached:
+       call hit_or_miss ; di = 0/1... miss/hit
+       cmp di,0
+       je left_boundry_not_reached
+       ; the ball hit the pad:
+       jmp leave_left   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; might be wrong BITCH
+       ;
+       ;
+       left_boundry_not_reached:
        call check_input ; ax=0/1/2  ... maf / down / up
        cmp ax,0 ;maf
        je dont_move_pad
@@ -379,6 +391,28 @@ main_code:
        ret
        reached_lower_boundry:
        mov ax,3
+       ret
+       
+        ;BALL TOUCHED THE PAD? [boolean hit_or_miss(b,p)]: 0/1 ...... miss/hit
+       hit_or_miss:
+       fld dword  [b] ; st0=100.0
+       fist dword [b] ; b=100
+       mov ax,[b]     ; ax= b=100
+       fstp dword [b] ; b=100.0
+       add ax,5 ; al s67 al t7t le alkoora
+       mov bx,[p] ; al 6rf al foo8 le al pad
+       cmp ax,bx
+       jl miss
+       ; ax>bx
+       sub ax,10 ; al s67 al foo8 le al koora
+       add bx,25 ; al s67 al t7t le al pad
+       cmp ax,bx
+       jg miss
+       ; hit:
+       mov di,1
+       ret
+       miss:
+       mov di,0
        ret
        
        ;THE DELAY FUNCTION:
