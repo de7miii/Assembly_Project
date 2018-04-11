@@ -37,19 +37,19 @@ main_code:
        int 10h
        ;
       call draw_pad
+      call draw_right_pad
+      call score
       call draw_right_boundary
       main_loop:
-      call reflection
       call go_left
-      ;
-      cmp ax , 0 ; you lost
+      cmp ax , 0
       je call_you_lost
-      cmp ax,1 ; go right
-      call score
       call go_right
+      cmp ax,0
+      je call_you_lost ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       jmp main_loop
       call_you_lost:
-      call you_lost
+      call credit
       
       
       
@@ -85,8 +85,59 @@ main_code:
       mov_pad_up:
       mov ax,2
       ret
+      
+     ;CHECKING RIGHT USER INPUT [boolean check_right_input ()] :
+      check_right_input:
+      in al , 0x64
+      and al,1
+      jz no_valid_right_input; ma d5l 7aga
+      ; d5l 7aga
+      in al,0x60 ; user input
+      cmp al,0x1E
+      je mov_right_pad_down
+      cmp al,0x10
+      je mov_right_pad_up
+      ; no valid input
+      no_valid_right_input:
+      mov ax,0
+      ret
+      mov_right_pad_down:
+      mov ax,1
+      ret
+      mov_right_pad_up:
+      mov ax,2
+      ret
+      
       ;CHANGING THE ANGLE AFTER HITTING THE PAD [theta modified_theta(b,p,theta)]:
       modified_theta:
+      ;
+      ;jmp acceptable
+      fld dword [theta]
+      fistp dword[theta]
+      mov bx,[theta] ; bx = theta
+      cmp bx , 0
+      jl negative_theta
+      cmp bx  , 60
+      jle acceptable
+      ;decremt theta by 6
+      sub bx , 6
+      mov [theta] , bx
+      fild dword [theta]
+      fstp dword [theta]
+      ret
+      negative_theta:
+      cmp bx  , -60
+      jge acceptable
+      ;decremt theta by 6
+      add bx , 6
+      mov [theta] , bx
+      fild dword [theta]
+      fstp dword [theta]
+      ret
+      ;
+      acceptable:
+      fild dword [theta]
+      fstp dword [theta]
       fld dword [b]
       fist dword[b]
       mov bx,[b]
@@ -145,23 +196,38 @@ main_code:
        cmp cx,256
        jge leave_right
        ;
+       ;
+       cmp cx,240
+       jle right_boundry_not_reached
+       ; right boundry reached:
+       call right_hit_or_miss ; di = 0/1... miss/hit
+       cmp di,0
+       je right_boundry_not_reached
+       ; the ball hit the pad:
+       mov ax,1 ; call go right
+       ret
+       ;
+       ;
+       right_boundry_not_reached:
        
-       call check_input ; ax=0/1/2  ... maf / down / up
+       call check_right_input ; ax=0/1/2  ... maf / down / up cheeechk
        cmp ax,0 ;maf
-       je dont_move_pad2
+       je dont_move_right_pad
        cmp ax,1 ; down
-       je move_pad_down_label2
+       je move_right_pad_down_label
        cmp ax,2 ; up
        ; move_pad_up
        pushad
-       call move_pad_up
+       call move_right_pad_up
        popad
-       jmp dont_move_pad2
+       jmp dont_move_right_pad
        ;
-       move_pad_down_label2:
+       move_right_pad_down_label:
        pushad
-       call move_pad_down
+       call move_right_pad_down
        popad
+       dont_move_right_pad:
+       ;
        dont_move_pad2:
        pushad
        call check_U_L_boundry ; ax=0/1/2/3
@@ -204,8 +270,8 @@ main_code:
       ret
       
       
-      ; IF YOU LOOSE ROLL CREDIT [void you_lost()]:
-      you_lost:
+      ; WHEN THE GAME ENDS ROLL CREDIT [void credit()]:
+      credit:
       mov al , 03h
       mov ah , 0
       int 10h
@@ -215,6 +281,11 @@ main_code:
       jg end_roll_down
       mov [mid] , ecx
       call write_names
+      call delay
+      call delay
+      call delay
+      call delay
+      call delay
       call delay
       call delete_names
       inc ecx 
@@ -230,8 +301,17 @@ main_code:
       mul ebx 
       mov edi , 0xB8000
       add edi , eax
-      add edi , 70
-      mov byte [edi], 0x41 
+      add edi , 70 ;;;;;cursor at middle of mid line
+      mov esi , our_names
+      kanda:
+      lodsb
+      cmp al , 'z'
+      je end_kanda
+      mov [edi] , al
+      inc edi
+      
+      jmp kanda
+      end_kanda:
       ret
       ;
       ;DELETE LIST OF NAMES IN MIDDLE OF SCREEN (void delete_names(mid))
@@ -241,8 +321,17 @@ main_code:
       mul ebx 
       mov edi , 0xB8000
       add edi , eax
-      add edi , 70
-      mov byte [edi], 0x0 
+      add edi , 70 ;;;;;cursor at middle of mid line
+      mov esi , our_names
+      unkanda:
+      lodsb
+      cmp al , 'z'
+      je end_unkanda
+      mov byte[edi] , 0
+      inc edi
+      
+      jmp unkanda
+      end_unkanda:
       ret
       ;COUNT THE SCORE:[int score()]:
       score:
@@ -277,6 +366,35 @@ main_code:
       call draw_pad
       cant_move_down:
       ret
+        ;MOVING THE RIGHT PAD UPWARDS [void move_right_pad_up(rp)]
+      move_right_pad_up:
+      call right_pad_boundry
+      cmp ax,2 ; reached upper boundry
+      je cant_move_up_r
+      call delete_right_pad
+      ;
+      mov cx,[rp]
+      sub cx,5
+      mov [rp] ,cx
+      ;
+      call draw_right_pad
+      cant_move_up_r:
+      ret
+      
+      ;MOVING THE RIGHT PAD DOWNWARDS [void move_right_pad_down(rp)]
+      move_right_pad_down:
+      call right_pad_boundry
+      cmp ax,1 ; reached lower boundry
+      je cant_move_down_r
+      call delete_right_pad
+      ;
+      mov cx,[rp]
+      add cx,5
+      mov [rp] ,cx
+      ;
+      call draw_right_pad
+      cant_move_down_r:
+      ret
       ;CHECKING PAD'S BOUNDRIES : [boolean pad_boundry(p)]
       pad_boundry:
       mov cx,[p]
@@ -295,6 +413,26 @@ main_code:
       upper_pad_boundry:
       mov ax,2
       ret
+      
+      ;CHECKING RIGHT PAD'S BOUNDRIES : [boolean right_pad_boundry(rp)]
+      right_pad_boundry:
+      mov cx,[rp]
+      mov bx,200
+      sub bx,25  ;200-25
+      cmp cx,0
+      jle upper_right_pad_boundry
+      cmp cx,bx
+      jge lower_right_pad_boundry
+      ; no boundry reached
+      mov ax,0
+      ret
+      lower_right_pad_boundry:
+      mov ax,1
+      ret
+      upper_right_pad_boundry:
+      mov ax,2
+      ret
+      
       ;DRAW PAD ON THE LEFT [void draw_pad (p)]
       draw_pad:
       mov dx , [p]
@@ -333,6 +471,46 @@ main_code:
       inc dx
       jmp pad_delete_loop
       end_pad_delete_loop: 
+      ret
+      
+      ;DRAW PAD ON THE RIGHT [void draw_right_pad (rp)]
+      draw_right_pad:
+      mov dx , [rp]
+      mov cx , 246 
+      mov bx , 25
+      add bx , dx ; rp + 25
+      pad_draw_right_loop:
+      cmp dx , bx
+      jge end_pad_draw_right_loop
+      
+      
+       mov al , 51
+       mov ah , 0ch
+       int 10h
+      
+      inc dx
+      jmp pad_draw_right_loop
+      end_pad_draw_right_loop: 
+      ret
+      
+      ;DELETE PAD FROM THE RIGHT [void delete_right_pad (rp)]
+      delete_right_pad:
+      mov dx , [rp]
+      mov cx , 246 
+      mov bx , 25
+      add bx , dx ; rp + 25
+      pad_delete_right_loop:
+      cmp dx , bx
+      jge end_pad_delete_right_loop
+      
+      
+       mov al , 0
+       mov ah , 0ch
+       int 10h
+      
+      inc dx
+      jmp pad_delete_right_loop
+      end_pad_delete_right_loop: 
       ret
       
       
@@ -484,14 +662,30 @@ main_code:
        ret
        ;GO LEFT FUNCTION: [boolean go_left(tehta,B)] 0,1 .... call you lost / call go right
             
-       go_left:   
+       go_left:
+       call reflection   
        call find_B
        xor ecx,ecx
-       mov cx,256
+       mov cx,240
        drawing_loop:
        cmp cx,0
        jle leave_left
        ;
+              ;
+       pushad
+       call check_U_L_boundry ; ax=0/1/2/3
+       and ax,010b
+       popad
+       jnz call_reflection ; case2 or 3
+       ;else .. continue
+       jmp continue
+       call_reflection:
+       pushad
+       call reflection
+       popad
+       
+       ;
+       continue:
        ;
        cmp cx,20
        jg left_boundry_not_reached
@@ -505,6 +699,7 @@ main_code:
        ;
        ;
        left_boundry_not_reached:
+       
        call check_input ; ax=0/1/2  ... maf / down / up
        cmp ax,0 ;maf
        je dont_move_pad
@@ -522,20 +717,10 @@ main_code:
        call move_pad_down
        popad
        dont_move_pad:
-       pushad
-       call check_U_L_boundry ; ax=0/1/2/3
-       and ax,010b
-       popad
-       jnz call_reflection ; case2 or 3
-       ;else .. continue
-       jmp continue
-       call_reflection:
-       pushad
-       call reflection
-       popad
-       
        ;
-       continue:
+ 
+
+
        ;finding m = tan theta
        fld dword[theta]
        fmul dword[conversion] ; in radians
@@ -604,6 +789,27 @@ main_code:
        mov di,0
        ret
        
+        ;BALL TOUCHED THE RIGHT PAD? [boolean right_hit_or_miss(b,rp)]: 0/1 ...... miss/hit
+       right_hit_or_miss:
+       fld dword  [b] ; st0=100.0
+       fist dword [b] ; b=100
+       mov ax,[b]     ; ax= b=100
+       fstp dword [b] ; b=100.0
+       add ax,5 ; al s67 al t7t le alkoora
+       mov bx,[rp] ; al 6rf al foo8 le al pad
+       cmp ax,bx
+       jl miss2
+       ; ax>bx
+       sub ax,10 ; al s67 al foo8 le al koora
+       add bx,25 ; al s67 al t7t le al pad
+       cmp ax,bx
+       jg miss2
+       ; hit:
+       mov di,1
+       ret
+       miss2:
+       mov di,0
+       ret
        ;THE DELAY FUNCTION:
        delay:
        mov bp , 50
@@ -628,13 +834,17 @@ main_code:
       a: dd 256.0
       b: dd 100.0
       temp: dd 0
-      theta: dd 55.0
+      theta: dd 30.0
       conversion:dd 0.0174533
       B: dd 0.0
       p: dd 0
+      rp: dd 0
       mid: dd 0
       min: dd 3.0
       max: dd 6.0
+      our_names: db 'AQMQMQAQRQ'
+      times(150) db 0
+      db 'KQHQAQLQIQDQz' , 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 times (0x400000 - 512) db 0
 
