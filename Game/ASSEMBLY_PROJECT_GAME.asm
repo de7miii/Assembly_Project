@@ -9,15 +9,15 @@ mov dl , 0x80
 mov ch , 0
 mov dh , 0
 mov cl , 2
-mov bx, startingTheCode
+mov bx, code_starts_here
 int 0x13
-jmp startingTheCode
+jmp code_starts_here
 
 
 times (510 - ($ - $$)) db 0
 db 0x55, 0xAA
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-startingTheCode:
+code_starts_here:
         ;
 	cli
 	mov edi, 0xB8000
@@ -39,7 +39,9 @@ main_code:
       call draw_pad
       call find_B
       call go_left
+      ;
       
+      ;
       
       
       
@@ -61,9 +63,9 @@ main_code:
       jz no_valid_input; ma d5l 7aga
       ; d5l 7aga
       in al,0x60 ; user input
-      cmp al,0x1E
+      cmp al,0x50
       je mov_pad_down
-      cmp al,0x10
+      cmp al,0x48
       je mov_pad_up
       ; no valid input
       no_valid_input:
@@ -296,7 +298,7 @@ main_code:
        fchs
        fstp dword[B]
        ret
-       ;GO LEFT FUNCTION: [void go_left(tehta,B)]
+       ;GO LEFT FUNCTION: [boolean go_left(tehta,B)] 0,1 .... call you lost / call go right
             
        go_left:   
        xor ecx,ecx
@@ -313,7 +315,8 @@ main_code:
        cmp di,0
        je left_boundry_not_reached
        ; the ball hit the pad:
-       jmp leave_left   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; might be wrong BITCH
+       mov ax,1 ; call go right
+       ret
        ;
        ;
        left_boundry_not_reached:
@@ -370,6 +373,7 @@ main_code:
        dec cx
        jmp drawing_loop
        leave_left:
+       mov ax,0 ; youu lost :(
        ret
        ;CHECK BALL BOUNDRY [double_boolean check_boundry(a,b)] le al 3 walls
         check_U_L_boundry: 
@@ -439,7 +443,7 @@ main_code:
       a: dd 256.0
       b: dd 100.0
       temp: dd 0
-      theta: dd 30.0
+      theta: dd 55.0
       conversion:dd 0.0174533
       B: dd 0.0
       p: dd 0
