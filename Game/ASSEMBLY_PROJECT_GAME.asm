@@ -36,6 +36,8 @@ main_code:
        mov al , 13h
        int 10h
        ;
+      ;call animiation
+      call transtion
       call draw_pad
       call draw_right_pad
       call score
@@ -181,7 +183,84 @@ main_code:
       fadd dword[max]
       fstp dword[theta]
       ret
+     
+      ;;;;;;;;;;;;;;;;;;;;;
+         ;CHANGING THE ANGLE AFTER HITTING THE RIGHT PAD [theta modified_thetar(b,rp,theta)]:
+      modified_thetar:
+      ;
+      ;jmp acceptable
+      fld dword [theta]
+      fistp dword[theta]
+      mov bx,[theta] ; bx = theta
+      cmp bx , 0
+      jl negative_thetar
+      cmp bx  , 60
+      jle acceptabler
+      ;decremt theta by 6
+      sub bx , 6
+      mov [theta] , bx
+      fild dword [theta]
+      fstp dword [theta]
+      ret
+      negative_thetar:
+      cmp bx  , -60
+      jge acceptabler
+      ;decremt theta by 6
+      add bx , 6
+      mov [theta] , bx
+      fild dword [theta]
+      fstp dword [theta]
+      ret
+      ;
+      acceptabler:
+      fild dword [theta]
+      fstp dword [theta]
+      fld dword [b]
+      fist dword[b]
+      mov bx,[b]
+      fstp dword [b]
+      mov ax,[rp]
+      ;
+      sub bx,ax
+      cmp bx,5  ;b-p
+      jle sub_theta_maxr
+      cmp bx,10
+      jle sub_theta_minr
+      cmp bx,15
+      jle dont_change_thetar
+      cmp bx,20
+      jle add_theta_minr
+      cmp bx,25
+      jle add_theta_maxr
+      sub_theta_maxr:
+      fld dword [theta]
+      fadd dword[max]
+      fstp dword[theta]
+      ret
+      ;
+      sub_theta_minr:
+      fld dword [theta]
+      fadd dword[min]
+      fstp dword[theta]
+      ret
+      ;
+      dont_change_thetar:
       
+      ret
+      add_theta_minr:
+      fld dword [theta]
+      fsub dword[min]
+      fstp dword[theta]
+      ret
+      ;
+      add_theta_maxr:
+      fld dword [theta]
+      fsub dword[max]
+      fstp dword[theta]
+      ret
+     
+      
+        
       ;GO RIGHT FUNCTION [void go_right(a,b,theta)]:
       go_right:
       ;;;;; change the angle as desired
@@ -189,7 +268,6 @@ main_code:
       ;
        call reflection
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-       call find_B
        xor ecx,ecx
        mov cx,20
        drawing_loop2:
@@ -210,7 +288,7 @@ main_code:
        ;
        right_boundry_not_reached:
        
-       call check_right_input ; ax=0/1/2  ... maf / down / up cheeechk
+       call check_input ; ax=0/1/2  ... maf / down / up cheeechk
        cmp ax,0 ;maf
        je dont_move_right_pad
        cmp ax,1 ; down
@@ -257,12 +335,51 @@ main_code:
        fadd dword[B]
        fstp dword[b]
        ;st0=y=m*i+b
+       mov al , [color]
        pushad
+       mov byte [color] ,4
        call draw_circle
        call delay
-       call delete_circle
+       call delete_circle 
        popad
+       mov [color], al
        inc cx
+       
+       
+       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+       ;
+       pushad
+       mov cx , [start_point_x]
+       mov dx , [start_point_y]
+       mov al , [color]
+       mov ah , 0Ch
+       int 10h
+;       
+       cmp cx , 319
+       jge next_line1
+       add cx,2
+       jmp set_memory1
+       next_line1:
+       
+       add al , 2
+       cmp dx , 200
+       jge reset_memory1
+       inc dx
+       mov cx , 263
+       jmp set_memory1
+       reset_memory1:
+       mov cx , 263
+       mov dx , 0
+       
+       set_memory1:
+       mov [start_point_x] , cx
+       mov [start_point_y] , dx
+       mov [color] , al
+       popad
+;       ;
+       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+       
+       
        jmp drawing_loop2
        leave_right:
        mov ax,0 ; youu lost :(
@@ -444,7 +561,7 @@ main_code:
       jge end_pad_draw_loop
       
       
-       mov al , 51
+       mov al , 1
        mov ah , 0ch
        int 10h
       
@@ -464,7 +581,7 @@ main_code:
       jge end_pad_delete_loop
       
       
-       mov al , 0
+       mov al , 15
        mov ah , 0ch
        int 10h
       
@@ -484,7 +601,7 @@ main_code:
       jge end_pad_draw_right_loop
       
       
-       mov al , 51
+       mov al , 4
        mov ah , 0ch
        int 10h
       
@@ -504,7 +621,7 @@ main_code:
       jge end_pad_delete_right_loop
       
       
-       mov al , 0
+       mov al , 15
        mov ah , 0ch
        int 10h
       
@@ -515,7 +632,7 @@ main_code:
       
       
       
-      ;DRAWING A CIRCLE AT (a,b): [void draw_circle(a,b)]
+      ;DRAWING A CIRCLE AT (a,b): [void draw_circle(a,b , color)]
       draw_circle:	
 
        finit
@@ -542,7 +659,7 @@ main_code:
        fadd dword [b]
        fistp dword [temp]
        mov dx , [temp]
-       mov al , 1100b
+       mov al , [color]
        mov ah , 0ch
        int 10h
        ;
@@ -559,7 +676,7 @@ main_code:
        cmp dx , bx
        jg end_fill_loop
        inc dx
-       mov al , 1100b
+       mov al , [color]
        mov ah , 0ch
        int 10h
        jmp fill_loop
@@ -596,7 +713,7 @@ main_code:
        fadd dword [b]
        fistp dword [temp]
        mov dx , [temp]
-       mov al , 0b
+       mov al , 15
        mov ah , 0ch
        int 10h
        ;
@@ -613,7 +730,7 @@ main_code:
        cmp dx , bx
        jg end_fill_loop1
        inc dx
-       mov al , 0b
+       mov al , 15
        mov ah , 0ch
        int 10h
        jmp fill_loop1
@@ -663,8 +780,11 @@ main_code:
        ;GO LEFT FUNCTION: [boolean go_left(tehta,B)] 0,1 .... call you lost / call go right
             
        go_left:
+       ;;;;; change the angle as desired
+      call modified_thetar
+      ;
+      
        call reflection   
-       call find_B
        xor ecx,ecx
        mov cx,240
        drawing_loop:
@@ -700,7 +820,7 @@ main_code:
        ;
        left_boundry_not_reached:
        
-       call check_input ; ax=0/1/2  ... maf / down / up
+       call check_right_input ; ax=0/1/2  ... maf / down / up
        cmp ax,0 ;maf
        je dont_move_pad
        cmp ax,1 ; down
@@ -735,16 +855,54 @@ main_code:
        fadd dword[B]
        fstp dword[b]
        ;st0=y=m*i+b
+       mov al , [color]
        pushad
+       mov byte [color] , 1
        call draw_circle
        call delay
-       call delete_circle
+       call delete_circle 
        popad
+       mov [color], al
+      
        dec cx
+       
+       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+       ;
+       pushad
+       mov cx , [start_point_x]
+       mov dx , [start_point_y]
+       mov al , [color]
+       mov ah , 0Ch
+       int 10h
+       
+       cmp cx , 319
+       jge next_line
+       add cx ,2
+       jmp set_memory
+       next_line:
+       
+       add al , 2
+       cmp dx , 200
+       jge reset_memory
+       inc dx
+       mov cx , 263
+       jmp set_memory
+       reset_memory:
+       mov cx , 263
+       mov dx , 0
+       set_memory:
+       mov [start_point_x] , cx
+       mov [start_point_y] , dx
+       mov [color] , al
+       popad
+       ;
+       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
        jmp drawing_loop
        leave_left:
        mov ax,0 ; youu lost :(
        ret
+       
+       
        ;CHECK BALL BOUNDRY [double_boolean check_boundry(a,b)] le al 3 walls
        check_U_L_boundry: 
        fld dword[b]
@@ -810,10 +968,56 @@ main_code:
        miss2:
        mov di,0
        ret
-       ;THE DELAY FUNCTION:
+       ; TRANSTION SCREEN BEFORE THE GAMES BEGINS [void transtion()]
+       transtion:
+       xor ecx , ecx
+       horizontal:
+       cmp cx , 320
+       jge end_horizontal
+       xor edx , edx
+       vertical:
+       cmp dx , 200
+       jge end_vertical
+       mov al , 15
+       mov ah , 0Ch
+       int 10h
+       inc dx
+       jmp vertical
+       end_vertical:
+       inc cx
+       jmp horizontal
+       end_horizontal:
+       
+       ret
+       ;DRAW RECTANGULERS AT SPCEFIC LOCATIONS AND COLORS [void animiation (start_point_x , start_point_y , right_end , bottom_end  , color)]
+       animiation:
+       mov cx , [start_point_x]
+       mov dx , [start_point_y]
+       mov di , [right_end]
+       mov bx , [bottom_end]
+       mov al , [color]
+       x:
+       cmp cx , di
+       jge end_x
+       mov dx ,[start_point_y]
+       y:
+       cmp dx , bx
+       jge end_y 
+       mov ah , 0Ch
+       int 10h
+       call delay
+       inc dx
+       jmp y
+       end_y:
+       inc cx
+       jmp x
+       end_x:
+       ret
+       
+       ;THE DELAY FUNCTION [void delay(delay_time)]:
        delay:
-       mov bp , 50
-       mov si , 50
+       mov bp , [delay_time]
+       mov si , [delay_time]
        delay3:
        dec bp
        nop
@@ -829,12 +1033,18 @@ main_code:
 
 
 	 ;section .data:
+      theta: dd 30.0
+      start_point_x: dd 263
+      start_point_y: dd 0
+      right_end: dd 100
+      bottom_end: dd 100 
+      color: dd 51
+      delay_time: dd 32
       radius: dd 25.0
       five: dd 5.0
       a: dd 256.0
       b: dd 100.0
       temp: dd 0
-      theta: dd 30.0
       conversion:dd 0.0174533
       B: dd 0.0
       p: dd 0
