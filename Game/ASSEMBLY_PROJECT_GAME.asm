@@ -35,8 +35,16 @@ main_code:
        mov ah , 0
        mov al , 13h
        int 10h
-       ;
+        ;
+      call draw_pad 
+      call draw_right_pad
+      call draw_circle
+     call circle_beat
       ;call animiation
+      mov byte[color],51
+      mov byte[p],100
+      mov byte[rp],100
+      mov byte[delay_time],50
       call transtion
       call draw_pad
       call draw_right_pad
@@ -65,6 +73,200 @@ main_code:
       jmp return
       ;THE FUNCTIONS:
       
+      
+      ;CIRCLE WITH CUSTOM RADIUS [void draw_intro_circle(radius)] :
+      draw_intro_circle:
+      pushad
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;	
+       finit
+       fld dword[intro_a] ;a
+       fsub dword[intro_radius]
+       fist dword[temp]
+       mov cx , [temp] 
+       ;
+       fadd dword[intro_radius]
+       fadd dword[intro_radius]
+       fistp dword[temp]
+       mov si,[temp]
+       ;
+       fld dword[intro_radius]
+       fmul st0
+       fstp dword[intro_radius]
+       ;
+       intro_circle:
+       cmp cx , si
+       jg end_intro_circle
+       
+       mov [temp] , cx
+       fild dword [temp]
+       fsub dword [intro_a]
+       fmul st0
+       fsub dword [intro_radius]
+       fchs
+       fsqrt
+       fadd dword [intro_b]
+       fistp dword [temp]
+       mov dx , [temp]
+       mov al , [color]
+       mov ah , 0ch
+       int 10h
+       ;
+       ;
+       fld dword[intro_b] ; b
+       fadd dword[intro_b]; 2*b
+       fistp dword[temp]
+       mov di,[temp]
+       ;
+       ;;;;;;;;;;;;;;;;;
+        ;
+       mov bx , dx
+       sub dx , di
+       neg dx
+       intro_fill_loop:
+       cmp dx , bx
+       jg end_intro_fill_loop
+       inc dx
+       mov al , [color]
+       mov ah , 0ch
+       int 10h
+       jmp intro_fill_loop
+       end_intro_fill_loop:
+      
+       ;;;;;;;;;;;;;;
+       inc cx
+       jmp intro_circle
+       end_intro_circle:
+       ;
+       fld dword[intro_radius]
+       fsqrt
+       fstp dword[intro_radius]
+       
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;
+      popad
+      ret
+            
+      ;MAKING THE CIRCLES LOOK ALIVE [ void circle_beat(radius)] :
+      circle_beat:
+      
+      beat:
+      xor di,di
+      mov ax,20
+      mov bx,10
+      mov cx,1
+      size_up:
+      cmp di,5
+      jge end_size_up
+      mov [intro_radius],ax
+      fild dword[intro_radius]
+      fstp dword[intro_radius]
+      mov byte[color],7
+      call draw_intro_circle
+      fldz
+      fstp dword [intro_radius]
+      ;;;
+      mov [intro_radius],bx
+      fild dword[intro_radius]
+      fstp dword[intro_radius]
+      mov byte[color],15
+      call draw_intro_circle
+      fldz
+      fstp dword [intro_radius]
+      ;;;;
+      mov [intro_radius],cx
+      fild dword[intro_radius]
+      fstp dword[intro_radius]
+      mov byte[color],4
+      call draw_intro_circle
+      fldz
+      fstp dword [intro_radius]
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+       call delay
+       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      ;;;
+      inc di
+      add ax,di
+      add bx,di
+      add cx,di
+      pushad
+      call check_input
+      cmp ax,1
+      popad
+      je end_intro
+      jmp size_up
+      end_size_up:
+      
+      
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      
+    mov di,1
+      size_down:
+      cmp di,5
+      jge end_size_down
+      mov [intro_radius],ax
+      fild dword[intro_radius]
+      fstp dword[intro_radius]
+      mov byte[color],7
+      call draw_intro_circle
+      fldz
+      fstp dword [intro_radius]
+      ;;;
+      mov [intro_radius],bx
+      fild dword[intro_radius]
+      fstp dword[intro_radius]
+      mov byte[color],15
+      call draw_intro_circle
+      fldz
+      fstp dword [intro_radius]
+      ;;;;
+      mov [intro_radius],cx
+      fild dword[intro_radius]
+      fstp dword[intro_radius]
+      mov byte[color],4
+      call draw_intro_circle
+      fldz
+      fstp dword [intro_radius]
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+       call delay
+       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      mov [intro_radius],ax
+      fild dword[intro_radius]
+      fstp dword[intro_radius]
+      mov byte[color],0
+      call draw_intro_circle
+      fldz
+      fstp dword [intro_radius]
+      ;
+            mov [intro_radius],bx
+      fild dword[intro_radius]
+      fstp dword[intro_radius]
+      mov byte[color],0
+      call draw_intro_circle
+      fldz
+      fstp dword [intro_radius]
+      ;
+            mov [intro_radius],cx
+      fild dword[intro_radius]
+      fstp dword[intro_radius]
+      mov byte[color],0
+      call draw_intro_circle
+      fldz
+      fstp dword [intro_radius]
+      ;;;
+      inc di
+      sub ax,di
+      sub bx,di
+      sub cx,di
+       pushad
+      call check_input
+      cmp ax,1
+      popad
+      je end_intro
+     
+      jmp size_down
+      end_size_down:
+      jmp beat
+      end_intro:
+      ret
       
       ;CHECKING USER INPUT [boolean check_input ()] :
       check_input:
@@ -271,7 +473,7 @@ main_code:
        xor ecx,ecx
        mov cx,20
        drawing_loop2:
-       cmp cx,256
+       cmp cx,[right_B]
        jge leave_right
        ;
        ;
@@ -788,7 +990,7 @@ main_code:
        xor ecx,ecx
        mov cx,240
        drawing_loop:
-       cmp cx,0
+       cmp cx,[left_B]
        jle leave_left
        ;
               ;
@@ -1033,22 +1235,27 @@ main_code:
 
 
 	 ;section .data:
+      intro_radius: dd 0.0
+      intro_a: dd 220.0
+      intro_b: dd 50.0
+      left_B: dd 0
+      right_B: dd 256
       theta: dd 30.0
       start_point_x: dd 263
       start_point_y: dd 0
       right_end: dd 100
       bottom_end: dd 100 
       color: dd 51
-      delay_time: dd 32
+      delay_time: dd 254
       radius: dd 25.0
       five: dd 5.0
-      a: dd 256.0
-      b: dd 100.0
+      a: dd 239.0 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      b: dd 163.0 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       temp: dd 0
       conversion:dd 0.0174533
       B: dd 0.0
-      p: dd 0
-      rp: dd 0
+      p: dd 150
+      rp: dd 150
       mid: dd 0
       min: dd 3.0
       max: dd 6.0
