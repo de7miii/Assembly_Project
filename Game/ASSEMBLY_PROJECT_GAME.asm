@@ -36,33 +36,30 @@ main_code:
        mov al , 13h
        int 10h
         ;
-        mov byte[delay_time],5
-        call credit
-        call transtion3
-        call transtion2
-        call draw_pad 
-        call draw_right_pad
-        call draw_circle
-        call circle_beat
-        mov byte[color],51
-        mov byte[p],100
-        mov byte[rp],100
-        mov byte[delay_time],50
-        call transtion
-        call draw_pad
-        call draw_right_pad
-        call score
-        call draw_right_boundary
-        main_loop:
-        call go_left
-        cmp ax , 0
-        je call_you_lost
-        call go_right
-        cmp ax,0
-        je call_you_lost ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-        jmp main_loop
-        call_you_lost:
-        call credit
+      call draw_pad 
+      call draw_right_pad
+      call draw_circle
+     call circle_beat
+      ;call animiation
+      mov byte[color],51
+      mov byte[p],100
+      mov byte[rp],100
+      mov byte[delay_time],50
+      call transtion
+      call draw_pad
+      call draw_right_pad
+      call score
+      call draw_right_boundary
+      main_loop:
+      call go_left
+      cmp ax , 0
+      je call_you_lost
+      call go_right
+      cmp ax,0
+      je call_you_lost ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      jmp main_loop
+      call_you_lost:
+      call credit
       
       
       
@@ -591,6 +588,70 @@ main_code:
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ret
       
+      
+      ; WHEN THE GAME ENDS ROLL CREDIT [void credit()]:
+      credit:
+      mov al , 03h
+      mov ah , 0
+      int 10h
+      xor ecx , ecx
+      roll_down:
+      cmp ecx , 25 
+      jg end_roll_down
+      mov [mid] , ecx
+      call write_names
+      call delay
+      call delay
+      call delay
+      call delay
+      call delay
+      call delay
+      call delete_names
+      inc ecx 
+      jmp roll_down
+      end_roll_down:
+              
+      ret
+      ;
+      ;WRITE LIST OF NAMES IN MIDDLE OF SCREEN (void write_names(mid))
+      write_names:
+      mov eax , [mid]
+      mov ebx , 160
+      mul ebx 
+      mov edi , 0xB8000
+      add edi , eax
+      add edi , 70 ;;;;;cursor at middle of mid line
+      mov esi , our_names
+      kanda:
+      lodsb
+      cmp al , 'z'
+      je end_kanda
+      mov [edi] , al
+      inc edi
+      
+      jmp kanda
+      end_kanda:
+      ret
+      ;
+      ;DELETE LIST OF NAMES IN MIDDLE OF SCREEN (void delete_names(mid))
+      delete_names:
+      mov eax , [mid]
+      mov ebx , 160
+      mul ebx 
+      mov edi , 0xB8000
+      add edi , eax
+      add edi , 70 ;;;;;cursor at middle of mid line
+      mov esi , our_names
+      unkanda:
+      lodsb
+      cmp al , 'z'
+      je end_unkanda
+      mov byte[edi] , 0
+      inc edi
+      
+      jmp unkanda
+      end_unkanda:
+      ret
       ;COUNT THE SCORE:[int score()]:
       score:
       
@@ -1130,168 +1191,6 @@ main_code:
        end_horizontal:
        
        ret
-       
-       ; TRANSTION2 SCREEN BEFORE THE GAMES BEGINS [void transtion2()]
-       transtion2:
-       xor ecx , ecx
-       horizontal2:
-       cmp cx , 161
-       jge end_horizontal2
-       xor edx , edx
-       call delay
-       vertical2:
-       cmp dx , 200
-       jge end_vertical2
-       mov al , 15
-       mov ah , 0Ch
-       int 10h
-       inc dx
-       jmp vertical2
-       end_vertical2:
-       sub cx ,320
-       neg cx
-       xor edx , edx
-       white_from_right:
-       cmp dx , 200
-       jge end_white_from_right
-       mov al , 15
-       mov ah , 0Ch
-       int 10h
-       inc dx
-       jmp white_from_right
-       end_white_from_right:
-       neg cx
-       add cx , 320
-       
-       inc cx
-       jmp horizontal2
-       end_horizontal2:
-       
-       ret
-       
-       
-       ; TRANSTION3 SCREEN BEFORE THE GAMES BEGINS [void transtion3()]
-       transtion3:
-       ;draw first block
-       mov byte[color] , 14
-       mov dword [start_point_x] , 5
-       mov dword [start_point_y] , 5
-       mov dword [right_end]     , 105
-       mov dword [bottom_end]    , 65
-       call animiation
-       ;draw 2 block
-       mov byte[color] , 14
-       mov dword [start_point_x] , 110
-       mov dword [start_point_y] , 130
-       mov dword [right_end]     , 230
-       mov dword [bottom_end]    , 160
-       call animiation
-       ;draw 3 block
-       mov byte[color] , 14
-       mov dword [start_point_x] , 290
-       mov dword [start_point_y] , 5
-       mov dword [right_end]     , 315
-       mov dword [bottom_end]    , 65
-       call animiation
-       ;draw 4 block
-       mov byte[color] , 14
-       mov dword [start_point_x] , 5
-       mov dword [start_point_y] , 70
-       mov dword [right_end]     , 105
-       mov dword [bottom_end]    , 160
-       call animiation
-       ;draw 5 block
-       mov byte[color] , 14
-       mov dword [start_point_x] , 5
-       mov dword [start_point_y] , 165
-       mov dword [right_end]     , 285
-       mov dword [bottom_end]    , 195
-       call animiation
-       ;draw 6 block
-       mov byte[color] , 14
-       mov dword [start_point_x] , 110
-       mov dword [start_point_y] , 5
-       mov dword [right_end]     , 230
-       mov dword [bottom_end]    , 125
-       call animiation
-       ;draw 7 block
-       mov byte[color] , 14
-       mov dword [start_point_x] , 290
-       mov dword [start_point_y] , 70
-       mov dword [right_end]     , 315
-       mov dword [bottom_end]    , 195
-       call animiation
-       ;draw 8 block
-       mov byte[color] , 14
-       mov dword [start_point_x] , 235
-       mov dword [start_point_y] , 5
-       mov dword [right_end]     , 285
-       mov dword [bottom_end]    , 160
-       call animiation
-       
-       ret
-       
-       
-      ; WHEN THE GAME ENDS ROLL CREDIT [void credit()]:
-      credit:
-      mov bl , [color]
-      xor ecx , ecx
-      roll_down:
-      cmp ecx , 25 
-      jg end_roll_down
-      mov [mid] , ecx
-      mov byte[color] , 14
-      call write_names
-      call delay
-      call delay
-      call delay
-      call delay
-      call delay
-      call delay
-      mov byte[color] , 0
-      call write_names
-      inc ecx 
-      jmp roll_down
-      end_roll_down:
-              
-      ret
-      ;
-      ;WRITE LIST OF NAMES IN MIDDLE OF SCREEN (void write_names(mid , color))
-      write_names:
-      mov dh , [mid] ; 25 rows
-      mov dl, 15 ; 40 coulomns
-      mov bh, 0  ; page number
-      mov ah, 2  ; function to set cursor posotion at : row dh , column dx 
-      int 10h 
-      mov esi , names
-      mov ah , 14 ; function to print character at cursor posotion 
-      mov bl , [color] ; color of character
-      print_names:
-      lodsb
-      pushad
-      popad
-      cmp  al , 0
-      je end_print_names
-      cmp al  , 10
-      je new_line
-      int 10h
-      jmp print_names
-      new_line:
-      cmp dh , 24
-      jge end_print_names
-      inc dh
-      inc dh
-      mov dl , 15
-      mov ah ,2
-      int 10h
-      mov ah , 14
-      jmp print_names
-      names: db ' 7elmi',10,' Abdualrahman',10," Ammar" ,10, ' Kahlid',10, ' Kahlid',0
-      end_print_names:
-      ret
-      
-       
-       
        ;DRAW RECTANGULERS AT SPCEFIC LOCATIONS AND COLORS [void animiation (start_point_x , start_point_y , right_end , bottom_end  , color)]
        animiation:
        mov cx , [start_point_x]
@@ -1303,22 +1202,19 @@ main_code:
        cmp cx , di
        jge end_x
        mov dx ,[start_point_y]
-       call delay
        y:
        cmp dx , bx
        jge end_y 
        mov ah , 0Ch
        int 10h
-       ;call delay
+       call delay
        inc dx
        jmp y
        end_y:
        inc cx
        jmp x
        end_x:
-       call delay
        ret
-       
        
        ;THE DELAY FUNCTION [void delay(delay_time)]:
        delay:
@@ -1350,7 +1246,7 @@ main_code:
       right_end: dd 100
       bottom_end: dd 100 
       color: dd 51
-      delay_time: dd 5
+      delay_time: dd 254
       radius: dd 25.0
       five: dd 5.0
       a: dd 239.0 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
