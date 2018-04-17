@@ -1,4 +1,4 @@
-bits 16
+ bits 16
 org 0x7C00
 
 cli
@@ -47,10 +47,16 @@ main_code:
         call choose_mode ; ax =1/2 .... up / down   ... 1 player / 2 players
          ;restore all memory values:
         ;--------------------------------------------------------------------------
+        cmp al ,[H_score_variable]
+        jl keep_setting
+        ;
+        dec dword[H_score_variable]
+        keep_setting:
+         mov dword[score_variable],0
         mov byte[color],15
         mov byte[rp],150
         mov byte[p],150
-        mov dword[delay_time],300
+        mov dword[delay_time],15
         mov byte[right_moving_up] , 0
         mov byte[right_moving_down] , 0
         mov byte[left_moving_up] , 0
@@ -76,13 +82,22 @@ main_code:
         ;
         one_players_mode:
         mov dword [mode_variable] ,1
+        ;
+
+;        ;
         mov byte[color],15
-        call transtion ;call transtion2 ;--------------------------PROBLEM !!!!
+       call transtion ;call transtion2 ;--------------------------PROBLEM !!!!
+       mov byte[color] , 0
+       mov dword [start_point_x] , 263
+       mov dword [start_point_y] , 0
+       mov dword [right_end]     , 320
+       mov dword [bottom_end]    , 200
+        call animiation
         ;game starts at one player mode
         call draw_right_pad
         call draw_pad
         call draw_right_boundary
-        
+        xor edx,edx
         main_loop1:
         call score
         call go_left
@@ -116,19 +131,23 @@ main_code:
         je call_you_lost 
         jmp main_loop
         call_you_lost:
+        mov byte[delay_time],25
         call outro
         ;--------------------------------------------------------------------------------
         restart_screen: ; up to restart .... anything else to quit ... no text yet
         mov byte[color],0
         call transtion
-        call credit ;------------restart_screen TAKES A LOT OF TIME
-        mov byte[color],15
-        call transtion
+        mov byte[color],14
+        call write_restart_options
         call choose_mode 
         cmp ax,1
         je begin_again
-        ;
-        
+        ;quit:
+        mov byte[delay_time],45
+        mov byte[color],0x0
+        call transtion
+        mov dword[delay_time],400
+        call credit
       
       
       
@@ -190,205 +209,60 @@ main_code:
       je red_wins
       ;blue wins:
       mov byte[color],1
-      mov byte[delay_time],70
       call transtion
       call transtion4
+      ;-----
+      mov dh ,  12 ; 25 rows
+      mov dl,  18 ; 40 coulomns
+      mov bh, 0  ; page number
+      mov ah, 2  ; function to set cursor posotion at : row dh , column dx 
+      int 10h 
+      mov esi , blue_wins_text
+      mov ah , 14 ; function to print character at cursor posotion 
+      mov bl , 1  ; color of character
+      print_options_b:
+      lodsb
+      cmp  al , 0
+      je end_print_options_b
+      int 10h
+      jmp print_options_b
+      blue_wins_text: db 'blue wins',0
+      end_print_options_b:
+      
+      ;-----
       ret
       red_wins:
       mov byte[color],4
-      mov byte[delay_time],70
       call transtion
       call transtion4
+      ;-----
+      mov dh ,  12 ; 25 rows
+      mov dl,  18 ; 40 coulomns
+      mov bh, 0  ; page number
+      mov ah, 2  ; function to set cursor posotion at : row dh , column dx 
+      int 10h 
+      mov esi , red_wins_text
+      mov ah , 14 ; function to print character at cursor posotion 
+      mov bl , 4  ; color of character
+      print_options_r:
+      lodsb
+      cmp  al , 0
+      je end_print_options_r
+      int 10h
+      jmp print_options_r
+      red_wins_text: db 'red wins',0
+      end_print_options_r:
+      
+      ;-----
+      
       ret
       
       ;4.CIRCLE WITH CUSTOM RADIUS [void draw_intro_circle(radius)] :
       draw_intro_circle:
-      pushad
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;	
-       finit
-       fld dword[intro_a] ;a
-       fsub dword[intro_radius]
-       fist dword[temp]
-       mov cx , [temp] 
-       ;
-       fadd dword[intro_radius]
-       fadd dword[intro_radius]
-       fistp dword[temp]
-       mov si,[temp]
-       ;
-       fld dword[intro_radius]
-       fmul st0
-       fstp dword[intro_radius]
-       ;
-       intro_circle:
-       cmp cx , si
-       jg end_intro_circle
-       
-       mov [temp] , cx
-       fild dword [temp]
-       fsub dword [intro_a]
-       fmul st0
-       fsub dword [intro_radius]
-       fchs
-       fsqrt
-       fadd dword [intro_b]
-       fistp dword [temp]
-       mov dx , [temp]
-       mov al , [color]
-       mov ah , 0ch
-       int 10h
-       ;
-       ;
-       fld dword[intro_b] ; b
-       fadd dword[intro_b]; 2*b
-       fistp dword[temp]
-       mov di,[temp]
-       ;
-       ;;;;;;;;;;;;;;;;;
-        ;
-       mov bx , dx
-       sub dx , di
-       neg dx
-       intro_fill_loop:
-       cmp dx , bx
-       jg end_intro_fill_loop
-       inc dx
-       mov al , [color]
-       mov ah , 0ch
-       int 10h
-       jmp intro_fill_loop
-       end_intro_fill_loop:
-      
-       ;;;;;;;;;;;;;;
-       inc cx
-       jmp intro_circle
-       end_intro_circle:
-       ;
-       fld dword[intro_radius]
-       fsqrt
-       fstp dword[intro_radius]
-       popad
        ret
             
       ;5.MAKING THE CIRCLES LOOK ALIVE [ void circle_beat(radius)] :
       circle_beat:
-      beat:
-      xor di,di
-      mov ax,20
-      mov bx,10
-      mov cx,1
-      size_up:
-      cmp di,5
-      jge end_size_up
-      mov [intro_radius],ax
-      fild dword[intro_radius]
-      fstp dword[intro_radius]
-      mov byte[color],7
-      call draw_intro_circle
-      fldz
-      fstp dword [intro_radius]
-      ;;;
-      mov [intro_radius],bx
-      fild dword[intro_radius]
-      fstp dword[intro_radius]
-      mov byte[color],15
-      call draw_intro_circle
-      fldz
-      fstp dword [intro_radius]
-      ;;;;
-      mov [intro_radius],cx
-      fild dword[intro_radius]
-      fstp dword[intro_radius]
-      mov byte[color],4
-      call draw_intro_circle
-      fldz
-      fstp dword [intro_radius]
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-       call delay
-       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-      ;;;
-      inc di
-      add ax,di
-      add bx,di
-      add cx,di
-      pushad
-      call check_input
-      cmp ax,1
-      popad
-      je end_intro
-      jmp size_up
-      end_size_up:
-      
-      
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-      
-      mov di,1
-      size_down:
-      cmp di,5
-      jge end_size_down
-      mov [intro_radius],ax
-      fild dword[intro_radius]
-      fstp dword[intro_radius]
-      mov byte[color],7
-      call draw_intro_circle
-      fldz
-      fstp dword [intro_radius]
-      ;;;
-      mov [intro_radius],bx
-      fild dword[intro_radius]
-      fstp dword[intro_radius]
-      mov byte[color],15
-      call draw_intro_circle
-      fldz
-      fstp dword [intro_radius]
-      ;;;;
-      mov [intro_radius],cx
-      fild dword[intro_radius]
-      fstp dword[intro_radius]
-      mov byte[color],4
-      call draw_intro_circle
-      fldz
-      fstp dword [intro_radius]
-      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-       call delay
-       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-      mov [intro_radius],ax
-      fild dword[intro_radius]
-      fstp dword[intro_radius]
-      mov byte[color],0
-      call draw_intro_circle
-      fldz
-      fstp dword [intro_radius]
-      ;
-            mov [intro_radius],bx
-      fild dword[intro_radius]
-      fstp dword[intro_radius]
-      mov byte[color],0
-      call draw_intro_circle
-      fldz
-      fstp dword [intro_radius]
-      ;
-            mov [intro_radius],cx
-      fild dword[intro_radius]
-      fstp dword[intro_radius]
-      mov byte[color],0
-      call draw_intro_circle
-      fldz
-      fstp dword [intro_radius]
-      ;;;
-      inc di
-      sub ax,di
-      sub bx,di
-      sub cx,di
-       pushad
-      call check_input
-      cmp ax,1
-      popad
-      je end_intro
-      jmp size_down
-      end_size_down:
-      jmp beat
-      end_intro:
       ret
       
       ;6.CHECKING USER INPUT [boolean check_input ()] :
@@ -783,6 +657,7 @@ main_code:
        fstp dword[b]
        ;st0=y=m*i+b
        mov al , [color]
+       
        pushad
        mov byte [color] ,4
        call draw_circle
@@ -791,6 +666,9 @@ main_code:
        popad
        mov [color], al
        inc cx
+       ;-----------------------------------------------------------------------
+       cmp dword[mode_variable] , 1
+       je drawing_loop2
        pushad
        mov cx , [start_point_x]
        mov dx , [start_point_y]
@@ -1008,6 +886,8 @@ main_code:
        
        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
        ;
+       cmp dword[mode_variable] , 1
+       je drawing_loop
        pushad
        mov cx , [start_point_x]
        mov dx , [start_point_y]
@@ -1044,6 +924,61 @@ main_code:
       
       ;13.COUNT THE SCORE:[int score()]:
       score:
+      ;------------------------------------->
+      mov dh ,  6 ; 25 rows
+      mov dl ,  33 ; 40 coulomns
+      mov bh ,   0 ; page number
+      mov ah ,   2 ; function to set cursor posotion at : row dh , column dx 
+      int 10h 
+      mov esi , the_high_score 
+      mov ah , 14 ; function to print character at cursor posotion 
+      mov bl , 14 ; color of character
+      print_score2:
+      lodsb
+      cmp al  , 10
+      je score_value2
+      int 10h
+      jmp print_score2
+      score_value2:
+      inc dh
+      inc dh
+      mov ah , 2
+      
+      mov dl , 35
+      int 10h
+      two_digits2:
+      ;;;;;;;;;;;;;;
+
+      finit
+      fild dword[H_score_variable]
+      fdiv dword[ten]
+      fsub dword[point_four] 
+      fistp word[buff]
+      mov al,[buff]
+      
+      mov ebx,zero_to_nine
+      xlat
+      mov ah , 14
+      mov bh , 0
+      mov bl , 14
+      int 10h
+
+      ;;;;;;;;;;;;;;
+      LSB2:
+       ;
+      mov bl , 10
+      mov al ,[buff]
+      mul bl
+      mov bl , [H_score_variable]
+      sub al , bl
+      neg al
+      mov ah , 14
+      mov ebx , zero_to_nine
+      xlat
+      mov bh , 0
+      mov bl , 14
+      int 10h
+      ;------------------------------------->
       mov dh ,  12 ; 25 rows
       mov dl ,  33 ; 40 coulomns
       mov bh ,   0 ; page number
@@ -1061,24 +996,63 @@ main_code:
       score_value:
       inc dh
       inc dh
-      mov dl , 35
       mov ah , 2
+      
+      mov dl , 35
       int 10h
+      two_digits:
+      ;;;;;;;;;;;;;;
+      finit
+      fild dword[score_variable]
+      fdiv dword[ten]
+      fsub dword[point_four] 
+      fistp word[buff]
+      mov al,[buff]
+      
+      mov ebx,zero_to_nine
+      xlat
       mov ah , 14
-      mov al , [score_variable]
+      mov bh , 0
+      mov bl , 14
+      int 10h
+
+      ;;;;;;;;;;;;;;
+      LSB:
+       ;
+      mov bl , 10
+      mov al ,[buff]
+      mul bl
+      mov bl , [score_variable]
+      sub al , bl
+      neg al
+      mov ah , 14
       mov ebx , zero_to_nine
       xlat
       mov bh , 0
       mov bl , 14
       int 10h
       jmp end_print_score
+      ;
+      buff: dd 0
       the_score: db 'SCORE:',10
-      score_variable: db 0
-      zero_to_nine: db '0123456789ABCDEFGHIJKLMNOP'
+       the_high_score: db 'Hscore:',10
+      score_variable: dd 0
+      zero_to_nine: db '0123456789'
+     ten: dd 10.0
+     point_four: dd 0.4
+     high_score: dd 0
+     H_score_variable: dd 1
       end_print_score:
+      
       mov al , [score_variable]
       inc al
       mov [score_variable] , al
+      cmp al,[H_score_variable]
+      jg new_high_score
+      ret
+      new_high_score:
+      inc dword[H_score_variable]
+      
       ret
       
       ;14.MOVING THE PAD UPWARDS [void move_pad_up(p)]
@@ -1089,7 +1063,7 @@ main_code:
       call delete_pad
       ;
       mov cx,[p]
-      sub cx,5
+      dec cx ; move up with one pixle
       mov [p] ,cx
       ;
       call draw_pad
@@ -1104,7 +1078,7 @@ main_code:
       call delete_pad
       ;
       mov cx,[p]
-      add cx,5
+      inc cx ; move down with one pixle
       mov [p] ,cx
       ;
       call draw_pad
@@ -1119,7 +1093,7 @@ main_code:
       call delete_right_pad
       ;
       mov cx,[rp]
-      sub cx,5
+      dec cx ; move up with one pixle
       mov [rp] ,cx
       ;
       call draw_right_pad
@@ -1134,7 +1108,7 @@ main_code:
       call delete_right_pad
       ;
       mov cx,[rp]
-      add cx,5
+      inc cx ; move down with one pixle
       mov [rp] ,cx
       ;
       call draw_right_pad
@@ -1754,7 +1728,40 @@ main_code:
        call delay
        ret
        
-       ;41.THE DELAY FUNCTION [void delay(delay_time)]:
+       ;RESTART OR QUIT [void write_restart_options (color) ]:
+       
+       write_restart_options:
+      mov dh ,  5 ; 25 rows
+      mov dl,  14 ; 40 coulomns
+      mov bh, 0  ; page number
+      mov ah, 2  ; function to set cursor posotion at : row dh , column dx 
+      int 10h 
+      mov esi , the_options2
+      mov ah , 14 ; function to print character at cursor posotion 
+      mov bl , byte [color]  ; color of character
+      print_options2:
+      lodsb
+      cmp  al , 0
+      je end_print_options2
+      cmp al  , 10
+      je next_option2
+      int 10h
+      jmp print_options2
+      next_option2:
+      inc dh
+      inc dh
+      mov dl , 14
+      mov ah ,2
+      int 10h
+      mov ah , 14
+      jmp print_options2
+      the_options2: db '1.QUIT ',3,10,'2.RESTART ',24,0
+      end_print_options2:
+      ret
+      
+       
+       
+       ;42.THE DELAY FUNCTION [void delay(delay_time)]:
        delay:
        mov bp , [delay_time]
        mov si , [delay_time]
@@ -1788,8 +1795,8 @@ main_code:
       theta: dd 30.0
       start_point_x: dd 263
       start_point_y: dd 0
-      right_end: dd 100
-      bottom_end: dd 100 
+      right_end: dd 320
+      bottom_end: dd 200 
       color: dd 51
       delay_time: dd 33
       radius: dd 25.0
