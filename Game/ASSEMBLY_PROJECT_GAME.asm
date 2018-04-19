@@ -47,10 +47,10 @@ main_code:
         call choose_mode ; ax =1/2 .... up / down   ... 1 player / 2 players
          ;restore all memory values:
         ;--------------------------------------------------------------------------
+        mov al,[score_variable]
         cmp al ,[H_score_variable]
-        jl keep_setting
+        jle keep_setting
         ;
-        dec dword[H_score_variable]
         keep_setting:
          mov dword[score_variable],0
         mov byte[color],15
@@ -1041,17 +1041,17 @@ main_code:
      ten: dd 10.0
      point_four: dd 0.4
      high_score: dd 0
-     H_score_variable: dd 1
+     H_score_variable: dd 0
       end_print_score:
       
       mov al , [score_variable]
       inc al
       mov [score_variable] , al
       cmp al,[H_score_variable]
-      jg new_high_score
+      jge new_high_score
       ret
       new_high_score:
-      inc dword[H_score_variable]
+      mov [H_score_variable],al
       
       ret
       
