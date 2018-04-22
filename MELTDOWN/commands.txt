@@ -1,0 +1,2 @@
+gcc -g -m64 -w -fPIC -static -O3 -pthread -Wno-attribiutes -m64 -c MELTDOWN.c
+gcc -g -m64 -w -fPIC -static -O3 -pthread -Wno-attribiutes -m64 MELTDOWN.o -o MELT

